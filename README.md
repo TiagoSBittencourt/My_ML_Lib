@@ -1,4 +1,4 @@
-# Linear Regression Library
+# Machine Leaning Lib
 
 A simple yet effective implementation of linear regression algorithms in Python, designed to facilitate learning and application of machine learning concepts.
 
