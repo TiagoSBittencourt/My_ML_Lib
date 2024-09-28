@@ -1,4 +1,4 @@
-from .Multiple_Regression import compute_cost, compute_gradient, gradient_descent
+from .Multiple_Regression import compute_cost, compute_gradient, gradient_descent, zscore_normalization
 
 __all__ = ['compute_cost', 'compute_gradient', 'gradient_descent']
 

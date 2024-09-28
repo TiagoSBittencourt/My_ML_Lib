@@ -77,3 +77,17 @@ def gradient_descent(X, y, w, b, alpha=0.0001, iters=1000, cost_function=compute
             print(f"Iteration {i}: Cost {cost:.2e}, w: {[round(x, 3) for x in w]}, b: {b:.3e}")
 
     return (w, b) if not history_print else (w, b, cost_history, weights_history)
+
+def zscore_normalization(X):
+    
+    mean = X.mean(axis=0)
+    std = X.std(axis=0)
+
+    X_normalized = (X - mean) / std
+
+    return X_normalized
+
+
+
+
+
