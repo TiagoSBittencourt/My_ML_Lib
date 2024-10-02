@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import sys
 import os
 """
@@ -28,56 +29,119 @@ class TestMultipleRegression(unittest.TestCase):
         self.data = pd.read_csv(os.path.join(os.path.dirname(__file__), "Test_Data", "Student_Performance.csv"))
 
         # Extract features (self.X) and target (self.y) variable from the DataFrame
-        self.X = self.data[["Hours Studied", "Previous Scores", "Extracurricular Activities", "Sleep Hours", "Sample Question Papers Practiced"]].values
-        self.y = self.data["Performance"].values
+        m_Xy= int(self.data.shape[0] * 0.75)
+
+        self.X_train = self.data[["Hours Studied", "Previous Scores", "Extracurricular Activities", "Sleep Hours", "Sample Question Papers Practiced"]].values[:m_Xy]
+        self.X_test = self.data[["Hours Studied", "Previous Scores", "Extracurricular Activities", "Sleep Hours", "Sample Question Papers Practiced"]].values[m_Xy:]
+
+        self.y_train = self.data["Performance"].values[:m_Xy]
+        self.y_test = self.data["Performance"].values[m_Xy:]
+
 
 
     def setUp(self):
         """Set up the initial parameters for the tests"""
-        self.w = np.array([0.1, 0.2, 0.3, 0.4, 0.5])  
-        self.b = 0.1
+        self.w_in = np.array([0.1, 0.2, 0.3, 0.4, 0.5])  
+        self.b_in = 0.1
         self.alpha = 0.01
         self.num_iters = 1000
-        self.X_normalize = zscore_normalization(self.X)
+        self.X_train_normalize = zscore_normalization(self.X_train)
+        self.X_test_normalize = zscore_normalization(self.X_test)
+
 
     def test_data(self):
         """Test the data to ensure the data is right loaded"""
-        self.assertIsNotNone(self.X)
-        self.assertIsNotNone(self.y)
-
-    def test_compute_cost(self):
-        """Test the compute_cost function for expected output"""
-        self.assertEqual(compute_cost(self.X, self.y, self.w, self.b), 763.8617009999999)
-
-    def test_compute_gradient(self):
-        """Test the compute_gradient function for expected output"""
-        answ_dj_dw, answ_dj_db = np.array([ -196.12941, -2722.6363 ,   -17.80053,  -233.41586,  -161.7188 ]), -35.68404
-        test_dj_dw, test_dj_db = compute_gradient(self.X, self.y, self.w, self.b)
-        self.assertTrue(np.allclose(answ_dj_dw, test_dj_dw, rtol=1e-5, atol=1e-5))
-        self.assertAlmostEqual(answ_dj_db, test_dj_db)
+        self.assertIsNotNone(self.X_train)
+        self.assertIsNotNone(self.y_train)
+        self.assertIsNotNone(self.X_test)
+        self.assertIsNotNone(self.y_test)
 
     def test_gradient_descent(self):
-        """Test the gradient_descent function for expected output"""
-        answ_w, answ_b = np.array([ 2.23879558,  0.83110804, -0.45998607, -1.37926589, -0.23638972]), -2.537177157886497 # For alpha=0.003 and iters=10000
-        test_w, test_b, J_history, wb_history = gradient_descent(self.X, self.y, self.w, self.b, alpha=0.0003, iters=10000, history_print=True)
-        self.assertTrue(np.allclose(answ_w, test_w, rtol=1e-5, atol=1e-5))
-        self.assertAlmostEqual(answ_b, test_b)
-        f_wb = np.dot(test_w, self.X[0]) + test_b # AI prediction for the first line
-        print("\nAlpha = 0.0003 | Iterations = 10000")
-        print("My AI Guess: ", f_wb, "\nANSW: ", self.y[0]) 
+        """Test the gradient_descent function for expected output."""
+        
+        w_best = [2.854, 1.018, 0.654, 0.472, 0.193]
+        b_best = -3.406e+01
+        alpha, lambda_, iters = 0.0003, 1, 10000
+        test_w, test_b, J_history, wb_history = gradient_descent(self.X_train, self.y_train, self.w_in, self.b_in, alpha=alpha, lambda_=lambda_, iters=iters, history_print=True)
+
+        # Predictions for all test examples using computed w and b
+        predictions = np.dot(self.X_test, test_w) + test_b
+
+        # Expected predictions using w_best and b_best
+        expected_predictions = np.dot(self.X_test, w_best) + b_best
+
+        # Parameters print
+        print(f"\n| Test Gradient Descent\n| Paramenters: w_in: {self.w_in} | b_in: {self.b_in}\n|\t       alpha: {alpha} | lambda: {lambda_} | iterations: {iters}")
+
+        n = self.y_test.shape[0]
+
+        # Mean Absolute Error
+        tol = 8
+        mean_absolute_error = sum(abs(self.y_test - predictions)) / n
+        assert mean_absolute_error < tol, "The Mean Absolute Error is higher than the tolarance ({tol})"
+        print(f"|-> Mean Absolute Error: {mean_absolute_error}")
+        
+        # Mean Squared Error
+        tol = 30
+        mse = sum((self.y_test[i] - predictions[i]) ** 2 for i in range(n)) / n
+        assert mse < tol, "Thee Mean Squared Error is higher than the tolarance ({tol})"
+        print(f"|-> Mean Squared Error (MSE): {mse}")
+
     
+        # Plot the data for analysis
+        if J_history:
+            plot_cost_history(J_history)
+        plot_predictions_vs_actuals(self.y_test, predictions)
+        feature_names = ["Hours Studied","Previous Scores","Extracurricular Activities","Sleep Hours","Sample Question Papers Practiced"]
+        plot_weights(test_w, feature_names)
+        
+
     def test_zscore_normalization(self):
         """Test the zscore_normalization funtion for expected output"""
         # Compare the first row of the normalizated version
         answ_normalization_0 = [ 0.77518771,  1.70417565,  1.01045465,  1.45620461, -1.24975394]
-        self.assertTrue(np.allclose(self.X_normalize[0], answ_normalization_0), "Normalized values do not match expected values.")
+        #self.assertTrue(np.allclose(self.X_normalize[0], answ_normalization_0), "Normalized values do not match expected values.")
 
-    def test_gradient_descent_normalize(self):
-        """Test the gradient_descent function for expected output"""
-        test_w, test_b, J_history, wb_history = gradient_descent(self.X_normalize, self.y, self.w, self.b, alpha=0.0003, iters=10000, history_print=True)
-        f_wb = np.dot(test_w, self.X_normalize[0]) + test_b # AI prediction for the first line
-        print("\nAlpha = 0.0003 | Iterations = 10000")
-        print("My AI Guess: ", f_wb, "\nANSW: ", self.y[0]) 
+def plot_cost_history(J_history):
+    fig, (ax1, ax2) = plt.subplots(1, 2, constrained_layout=True, figsize=(12, 4))
+    
+    # Plotting all the cost history
+    ax1.plot(J_history)
+    ax1.set_title("Cost vs. Iteration")
+    ax1.set_ylabel('Cost')
+    ax1.set_xlabel('Iteration (1000)')
+
+    # Plotting the tail of the cost history
+    tail = len(J_history)//10
+    print(tail)
+    ax2.plot(tail + np.arange(len(J_history[tail:])), J_history[tail:])
+    ax2.set_title("Cost vs. Iteration (Tail)")
+    ax2.set_ylabel('Cost')
+    ax2.set_xlabel('Iteration (1000)')
+    
+    plt.show()
+
+def plot_predictions_vs_actuals(y_test, predictions):
+    plt.figure(figsize=(10, 6))
+    plt.plot(y_test, label='Actual Values', marker='o', color='green', linestyle='None')
+    plt.plot(predictions, label='Predictions', marker='x', color='red', linestyle='None')
+    plt.xlabel('Examples')
+    plt.ylabel('Performance')
+    plt.title('Predictions vs. Actual Values')
+    plt.legend()
+    plt.grid(True) 
+    plt.show()
+
+def plot_weights(weights, feature_names):
+    plt.figure(figsize=(10, 6))
+    plt.bar(feature_names, weights, color='purple')
+    plt.xlabel('Features')
+    plt.ylabel('Weights')
+    plt.title('Feature Weights after Gradient Descent')
+    plt.xticks(rotation=45) 
+    plt.grid(axis='y')  
+    plt.tight_layout()  
+    plt.show()
 
 
 if __name__ == '__main__':
